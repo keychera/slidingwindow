@@ -37,7 +37,6 @@ void print_ack_segment(ack_segment ack_seg) {
 	printf("Checksum : 0x%02x\n", ack_seg.checksum & 0xff);
 }
 
-
 int main(int argc, char** argv) {
 	// Handle parameters, initialize
 	if (argc < 5) {
@@ -77,11 +76,14 @@ int main(int argc, char** argv) {
 
 	struct sockaddr_in clientaddr;
 
-	while (1) {
-		char buff[256];
-		segment seg;
-		ack_segment ack_seg;
+	char buff[256];
+	segment seg;
+	ack_segment ack_seg;
 
+	FILE *fp;
+	fp = fopen(filename, "w+");
+
+	while (1) {
 		int bytes_read = recvfrom(sockfd, buff, 9, 0, (struct sockaddr *)&clientaddr, (socklen_t*)&addr_len);
 	
 		if (bytes_read < 0) {
@@ -101,18 +103,17 @@ int main(int argc, char** argv) {
 			seg.checksum = *(buff+8);
 		}
 
-		// Print Segment
-		printf("Segment received : \n");
-		print_segment(seg);
-		fflush(stdout);
+		if (seg.checksum == 'c') {
+			// Print Segment
+			printf("Segment received : \n");
+			print_segment(seg);
+			fflush(stdout);
 
-		// Write data from segment to external file
-		FILE *fp;
-		fp = fopen(filename, "w+");
-		fputc(seg.data, fp);
-		fclose(fp);
-
-		//if (checksum) {
+			// Write data from segment to external file
+			fputc(seg.data, fp);
+			if (seg.data == '\n')
+				break;
+		
 			// Prepare ack segment
 			ack_seg.ack = '\06';
 			ack_seg.nextSeq = seg.seqNum + 1;
@@ -127,12 +128,13 @@ int main(int argc, char** argv) {
 
 			sendto(sockfd, ack_buf, 7, 0, (struct sockaddr *)&clientaddr, sizeof(struct sockaddr));
 			fflush(stdout);
-		//}
 
-		// Print ACK Segment
-		print_ack_segment(ack_seg);
+			// Print ACK Segment
+			print_ack_segment(ack_seg);
+		}
 	}
 
+	fclose(fp);
 	close(sockfd);
 	return 0;
 }

@@ -69,28 +69,27 @@ int main(int argc, char** argv) {
 	bzero(&(serveraddr.sin_zero), 8);
 	sin_size = sizeof(struct sockaddr);
 
-	while (1) {
-		char buff[256];
-		segment seg;
-		ack_segment ack_seg;
+	char buff[256];
+	segment seg;
+	ack_segment ack_seg;
 
-		FILE *fp;
-		fp = fopen(filename, "r");
-		fgets(buff, 256, fp);
-		if (fp == NULL) {
-			perror("Error while opening file\n");
-			exit(EXIT_FAILURE);
-		}
-		else {
+	FILE *fp;
+	fp = fopen(filename, "r");
+	if (fp == NULL) {
+		perror("Error while opening file\n");
+		exit(EXIT_FAILURE);
+	}
+
+	while (fgets(buff, bufferSize, fp) != NULL) {
+		int i = 0;
+		buff[strlen(buff)] = '\0';
+
+		while ((i < bufferSize) && (buff[i] != '\0')) {
 			// Convert data to segment
-			char send_data;
-
-			send_data = buff[0];
-
 			seg.soh = '\01';
 			seg.seqNum = 1;
 			seg.stx = '\02';
-			seg.data = send_data;
+			seg.data = buff[i];
 			seg.etx = '\03';
 			seg.checksum = 'c';
 
@@ -108,18 +107,26 @@ int main(int argc, char** argv) {
 
 			// Send data
 			sendto(sockfd, seg_buf, 9, 0, (struct sockaddr *)&serveraddr, sizeof(struct sockaddr));
+
+			i++;
 		}
-		fclose(fp);
-		
-		char ack_buf[7];
-		int bytes_recv = recvfrom(sockfd, ack_buf, 7, 0, (struct sockaddr *)&serveraddr, (socklen_t*)&sin_size);
-		printf("ACK Received : %s\n", ack_buf);
-		ack_seg.ack = *ack_buf;
-		ack_seg.nextSeq = *(ack_buf+1);
-		ack_seg.windowSize = *(ack_buf+5);
-		ack_seg.checksum = *(ack_buf+6);
-		print_ack_segment(ack_seg);
-		fflush(stdout);
 	}
+
+	fclose(fp);
 	
+	char ack_buf[7];
+	int bytes_recv = recvfrom(sockfd, ack_buf, 7, 0, (struct sockaddr *)&serveraddr, (socklen_t*)&sin_size);
+	printf("ACK Received : %s\n", ack_buf);
+	ack_seg.ack = *ack_buf;
+	ack_seg.nextSeq = *(ack_buf+1);
+	ack_seg.windowSize = *(ack_buf+5);
+	ack_seg.checksum = *(ack_buf+6);
+	print_ack_segment(ack_seg);
+	fflush(stdout);
+
+	if (ack_seg.checksum == 'c') {
+		// Sliding window
+	}
+
+	close(sockfd);
 }
