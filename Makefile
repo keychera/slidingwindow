@@ -1,4 +1,5 @@
 CC=g++
+CFLAGS=-g -Wall
 
 all: sendfile recvfile 
 
@@ -9,7 +10,10 @@ recvfile: recvfile.o
 	$(CC) recvfile.o -o bin/recvfile
 
 sendfile.o : src/sendfile.cpp
-	$(CC) -c src/sendfile.cpp -o sendfile.o
+	$(CC) -c src/sendfile.cpp -o sendfile.o $(CFLAGS)
 
 recvfile.o : src/recvfile.cpp
-	$(CC) -c src/recvfile.cpp -o recvfile.o
+	$(CC) -c src/recvfile.cpp -o recvfile.o $(CFLAGS)
+
+clean:
+	rm -f *.o bin/sendfile bin/recvfile
