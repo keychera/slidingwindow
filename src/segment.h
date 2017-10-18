@@ -3,7 +3,7 @@ typedef struct
     char soh;
     int seqNum;
     char stx;
-    char data;
+    unsigned char data;
     char etx;
     char checksum;
 } segment;

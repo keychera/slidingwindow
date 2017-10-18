@@ -10,22 +10,38 @@
 
 void print_segment(segment seg)
 {
-	printf("SOH : 0x%02x\n", seg.soh);
+	//printf("SOH : 0x%02x\n", seg.soh);
 	printf("SeqNum : 0x%02x (%d in decimal)\n", seg.seqNum, seg.seqNum);
-	printf("STX : 0x%02x\n", seg.stx);
+	//printf("STX : 0x%02x\n", seg.stx);
 	printf("Data : 0x%02x\n", seg.data & 0xff);
-	printf("ETX : 0x%02x\n", seg.etx);
+	//printf("ETX : 0x%02x\n", seg.etx);
 	printf("Checksum : 0x%02x\n", seg.checksum & 0xff);
 	printf("\n");
 }
 
 void print_ack_segment(ack_segment ack_seg)
 {
-	printf("ACK : 0x%02x\n", ack_seg.ack);
+	//printf("ACK : 0x%02x\n", ack_seg.ack);
 	printf("NextSeqNum : 0x%02x (%d in decimal)\n", ack_seg.nextSeq, ack_seg.nextSeq);
-	printf("ADV Window Size: 0x%02x\n", ack_seg.windowSize);
+	//printf("ADV Window Size: 0x%02x\n", ack_seg.windowSize);
 	printf("Checksum : 0x%02x\n", ack_seg.checksum & 0xff);
 	printf("\n");
+}
+
+unsigned char CRC8(unsigned char data, unsigned char len) {
+    unsigned char crc = 0x00;
+    while (len--) {
+        unsigned char extract = data++;
+        for (unsigned char tempI = 8; tempI; tempI--) {
+            unsigned char sum = (crc ^ extract) & 0x01;
+            crc >>= 1;
+            if (sum) {
+                crc ^= 0x8C;
+            }
+            extract >>= 1;
+        }
+    }
+    return crc;
 }
 
 int main(int argc, char **argv)
@@ -68,13 +84,13 @@ int main(int argc, char **argv)
 	bzero(&(serveraddr.sin_zero), 8);
 	sin_size = sizeof(struct sockaddr);
 
-	char buff[256];
+	unsigned char buff[256];
 	segment seg;
 	ack_segment ack_seg;
 
 	//opening the files
 	FILE *fp;
-	fp = fopen(filename, "r");
+	fp = fopen(filename, "rb");
 	if (fp == NULL)
 	{
 		perror("Error while opening file\n");
@@ -86,10 +102,9 @@ int main(int argc, char **argv)
 	int LFS = -1;
 
 	int windowSize = maxWindowSize;
-	while (fgets(buff, bufferSize, fp) != NULL)
+	while (fread(buff, 1, bufferSize, fp) > 0)
 	{
 		int i = 0;
-		buff[strlen(buff)] = '\0';
 
 		while ((i < bufferSize) && (buff[i] != '\0'))
 		{
@@ -102,6 +117,8 @@ int main(int argc, char **argv)
 				seg.data = buff[i];
 				seg.etx = '\03';
 				seg.checksum = 'c';
+				//unsigned char crc = CRC8(seg.data, 1);
+				//seg.checksum = crc;
 
 				char seg_buf[9];
 				*seg_buf = seg.soh;
@@ -178,6 +195,27 @@ int main(int argc, char **argv)
 			i++;
 		}
 	}*/
+
+	// Mark end of data
+	seg.soh = '\01';
+	seg.seqNum = LFS + 1;
+	seg.stx = '\02';
+	seg.data = '\0';
+	seg.etx = '\03';
+	seg.checksum = 'c';
+	//unsigned char crc = CRC8(seg.data, 1);
+	//seg.checksum = crc;
+
+	char seg_buf[9];
+	*seg_buf = seg.soh;
+	*(seg_buf + 1) = seg.seqNum;
+	*(seg_buf + 5) = seg.stx;
+	*(seg_buf + 6) = seg.data;
+	*(seg_buf + 7) = seg.etx;
+	*(seg_buf + 8) = seg.checksum;
+
+	// Send data
+	sendto(sockfd, seg_buf, 9, 0, (struct sockaddr *)&serveraddr, sizeof(struct sockaddr));
 
 	fclose(fp);
 

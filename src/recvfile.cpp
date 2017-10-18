@@ -8,22 +8,38 @@
 
 void print_segment(segment seg)
 {
-	printf("SOH : 0x%02x\n", seg.soh);
+	//printf("SOH : 0x%02x\n", seg.soh);
 	printf("SeqNum : 0x%02x (%d in decimal)\n", seg.seqNum, seg.seqNum);
-	printf("STX : 0x%02x\n", seg.stx);
+	//printf("STX : 0x%02x\n", seg.stx);
 	printf("Data : 0x%02x\n", seg.data & 0xff);
-	printf("ETX : 0x%02x\n", seg.etx);
+	//printf("ETX : 0x%02x\n", seg.etx);
 	printf("Checksum : 0x%02x\n", seg.checksum & 0xff);
 	printf("\n");
 }
 
 void print_ack_segment(ack_segment ack_seg)
 {
-	printf("ACK : 0x%02x\n", ack_seg.ack);
+	//printf("ACK : 0x%02x\n", ack_seg.ack);
 	printf("NextSeqNum : 0x%02x (%d in decimal)\n", ack_seg.nextSeq, ack_seg.nextSeq);
-	printf("ADV Window Size: 0x%02x\n", ack_seg.windowSize);
+	//printf("ADV Window Size: 0x%02x\n", ack_seg.windowSize);
 	printf("Checksum : 0x%02x\n", ack_seg.checksum & 0xff);
 	printf("\n");
+}
+
+unsigned char CRC8(unsigned char data, unsigned char len) {
+    unsigned char crc = 0x00;
+    while (len--) {
+        unsigned char extract = data++;
+        for (unsigned char tempI = 8; tempI; tempI--) {
+            unsigned char sum = (crc ^ extract) & 0x01;
+            crc >>= 1;
+            if (sum) {
+                crc ^= 0x8C;
+            }
+            extract >>= 1;
+        }
+    }
+    return crc;
 }
 
 int main(int argc, char **argv)
@@ -69,12 +85,12 @@ int main(int argc, char **argv)
 
 	struct sockaddr_in clientaddr;
 
-	char buff[256];
+	unsigned char buff[256];
 	segment seg;
 	ack_segment ack_seg;
 
 	FILE *fp;
-	fp = fopen(filename, "w+");
+	fp = fopen(filename, "w+b");
 
 	while (1)
 	{
@@ -85,8 +101,6 @@ int main(int argc, char **argv)
 			perror("Error reading buffer");
 			exit(1);
 		}
-
-		buff[bytes_read] = '\0';
 
 		// Read segment (first segment of buff)
 		if (*buff == '\01' && *(buff + 5) == '\02' && *(buff + 7) == '\03')
@@ -99,6 +113,12 @@ int main(int argc, char **argv)
 			seg.checksum = *(buff + 8);
 		}
 
+		// End of data
+		if (seg.data == '\0')
+			break;
+
+		//unsigned char crc = CRC8(seg.data, 1);
+		//if (seg.checksum == crc)
 		if (seg.checksum == 'c')
 		{
 			// Print Segment
@@ -108,9 +128,8 @@ int main(int argc, char **argv)
 			printf("\n");
 
 			// Write data from segment to external file
-			fputc(seg.data, fp);
-			if (seg.data == '\n')
-				break;
+			fwrite(&(seg.data), 1, 1, fp);
+			
 
 			// Prepare ack segment
 			ack_seg.ack = '\06';
