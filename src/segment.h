@@ -16,7 +16,7 @@ typedef struct
     char stx;
     unsigned char data;
     char etx;
-    char checksum;
+    unsigned char checksum;
 } segment;
 
 typedef struct
@@ -24,5 +24,5 @@ typedef struct
     char ack;
     unsigned int nextSeq;
     char windowSize;
-    char checksum;
+    unsigned char checksum;
 } ack_segment;

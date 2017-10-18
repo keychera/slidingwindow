@@ -21,25 +21,43 @@ void print_ack_segment(ack_segment ack_seg)
 	printf("\n");
 }
 
-unsigned char CRC8(unsigned char data, unsigned char len)
+// unsigned char CRC8(unsigned char data, unsigned char len)
+// {
+// 	unsigned char crc = 0x00;
+// 	while (len--)
+// 	{
+// 		unsigned char extract = data++;
+// 		for (unsigned char tempI = 8; tempI; tempI--)
+// 		{
+// 			unsigned char sum = (crc ^ extract) & 0x01;
+// 			crc >>= 1;
+// 			if (sum)
+// 			{
+// 				crc ^= 0x8C;
+// 			}
+// 			extract >>= 1;
+// 		}
+// 	}
+// 	return crc;
+// }
+
+unsigned char CRC8(const unsigned char * data, const unsigned int size)
 {
-	unsigned char crc = 0x00;
-	while (len--)
-	{
-		unsigned char extract = data++;
-		for (unsigned char tempI = 8; tempI; tempI--)
-		{
-			unsigned char sum = (crc ^ extract) & 0x01;
-			crc >>= 1;
-			if (sum)
-			{
-				crc ^= 0x8C;
-			}
-			extract >>= 1;
-		}
-	}
-	return crc;
+    unsigned char crc = 0;
+    for ( unsigned int i = 0; i < size; ++i )
+    {
+        unsigned char inbyte = data[i];
+        for ( unsigned char j = 0; j < 8; ++j )
+        {
+            unsigned char mix = (crc ^ inbyte) & 0x01;
+            crc >>= 1;
+            if ( mix ) crc ^= 0x8C;
+            inbyte >>= 1;
+        }
+    }
+    return crc;
 }
+
 
 int main(int argc, char **argv)
 {
@@ -116,9 +134,9 @@ int main(int argc, char **argv)
 				seg.stx = '\02';
 				seg.data = buff[i];
 				seg.etx = '\03';
-				seg.checksum = 'c';
-				//unsigned char crc = CRC8(seg.data, 1);
-				//seg.checksum = crc;
+				// seg.checksum = 'c';
+				unsigned char crc = CRC8(reinterpret_cast<unsigned char *>(&seg), 8);
+				seg.checksum = crc;
 
 				char seg_buf[9];
 				*seg_buf = seg.soh;
@@ -176,6 +194,9 @@ int main(int argc, char **argv)
 				fflush(stdout);
 			}
 		}
+
+		for (int i=0; i<256; i++)
+			buff[i] = '\0';
 	}
 
 	// Mark end of data
@@ -184,9 +205,9 @@ int main(int argc, char **argv)
 	seg.stx = '\02';
 	seg.data = '\0';
 	seg.etx = '\03';
-	seg.checksum = 'c';
-	//unsigned char crc = CRC8(seg.data, 1);
-	//seg.checksum = crc;
+	// seg.checksum = 'c';
+	unsigned char crc = CRC8(reinterpret_cast<unsigned char *>(&seg), 8);
+	seg.checksum = crc;
 
 	char seg_buf[9];
 	*seg_buf = seg.soh;
