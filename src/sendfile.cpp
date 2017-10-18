@@ -147,17 +147,17 @@ int main(int argc, char **argv)
 				char ack_buf[7];
 				int bytes_recv = -1;
 				bytes_recv = recvfrom(sockfd, ack_buf, 7, 0, (struct sockaddr *)&serveraddr, (socklen_t *)&sin_size);
+				char hex[4];
+				hex[0] = *(ack_buf + 1);
+				hex[1] = *(ack_buf + 2);
+				hex[2] = *(ack_buf + 3);
+				hex[3] = *(ack_buf + 4);
+				std::string hexstr(hex);
+				hexstr.resize(4);
+				ack_seg.nextSeq = std::stoul(hexstr,nullptr,16);
 				if (bytes_recv > 0)
 				{
-					char hex[4];
-					hex[0] = *(ack_buf + 1);
-					hex[1] = *(ack_buf + 2);
-					hex[2] = *(ack_buf + 3);
-					hex[3] = *(ack_buf + 4);
-					std::string hexstr(hex);
-					hexstr.resize(4);
-					LAR = std::stoul(hexstr,nullptr,16);
-					LAR -= 1;
+					LAR = ack_seg.nextSeq - 1;
 				}
 				else
 				{
@@ -165,7 +165,6 @@ int main(int argc, char **argv)
 					LFS = LAR;
 				}
 				ack_seg.ack = *ack_buf;
-				ack_seg.nextSeq = (unsigned int)*(ack_buf + 1);
 				ack_seg.windowSize = *(ack_buf + 5);
 				ack_seg.checksum = *(ack_buf + 6);
 
