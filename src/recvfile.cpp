@@ -21,17 +21,34 @@ void print_ack_segment(ack_segment ack_seg)
 	printf("\n");
 }
 
-unsigned char CRC8(unsigned char data, unsigned char len) {
-    unsigned char crc = 0x00;
-    while (len--) {
-        unsigned char extract = data++;
-        for (unsigned char tempI = 8; tempI; tempI--) {
-            unsigned char sum = (crc ^ extract) & 0x01;
+// unsigned char CRC8(const reinterpret_cast<unsigned char *>data, unsigned char len) {
+//     unsigned char crc = 0x00;
+//     while (len--) {
+//         unsigned char extract = data++;
+//         for (unsigned char tempI = 8; tempI; tempI--) {
+//             unsigned char sum = (crc ^ extract) & 0x01;
+//             crc >>= 1;
+//             if (sum) {
+//                 crc ^= 0x8C;
+//             }
+//             extract >>= 1;
+//         }
+//     }
+//     return crc;
+// }
+
+unsigned char CRC8(const unsigned char * data, const unsigned int size)
+{
+    unsigned char crc = 0;
+    for ( unsigned int i = 0; i < size; ++i )
+    {
+        unsigned char inbyte = data[i];
+        for ( unsigned char j = 0; j < 8; ++j )
+        {
+            unsigned char mix = (crc ^ inbyte) & 0x01;
             crc >>= 1;
-            if (sum) {
-                crc ^= 0x8C;
-            }
-            extract >>= 1;
+            if ( mix ) crc ^= 0x8C;
+            inbyte >>= 1;
         }
     }
     return crc;
@@ -122,9 +139,9 @@ int main(int argc, char **argv)
 		if (seg.data == '\0')
 			break;
 
-		//unsigned char crc = CRC8(seg.data, 1);
-		//if (seg.checksum == crc)
-		if (seg.checksum == 'c')
+		unsigned char crc = CRC8(reinterpret_cast<unsigned char *>(&seg), 8);
+		if (seg.checksum == crc)
+		// if (seg.checksum == 'c')
 		{
 			// Print Segment
 			printf("Segment received : \n");
@@ -140,7 +157,9 @@ int main(int argc, char **argv)
 			ack_seg.ack = '\06';
 			ack_seg.nextSeq = seg.seqNum + 1;
 			ack_seg.windowSize = maxWindowSize;
-			ack_seg.checksum = 'c';
+			unsigned char crc = CRC8(reinterpret_cast<unsigned char *>(&ack_seg), 6);
+			ack_seg.checksum = crc;
+			//ack_seg.checksum = 'c';
 
 			char ack_buf[7];
 			*ack_buf = ack_seg.ack;
