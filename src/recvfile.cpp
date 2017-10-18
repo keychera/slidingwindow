@@ -14,6 +14,7 @@ void print_segment(segment seg)
 	printf("Data : 0x%02x\n", seg.data & 0xff);
 	printf("ETX : 0x%02x\n", seg.etx);
 	printf("Checksum : 0x%02x\n", seg.checksum & 0xff);
+	printf("\n");
 }
 
 void print_ack_segment(ack_segment ack_seg)
@@ -22,6 +23,7 @@ void print_ack_segment(ack_segment ack_seg)
 	printf("NextSeqNum : 0x%02x (%d in decimal)\n", ack_seg.nextSeq, ack_seg.nextSeq);
 	printf("ADV Window Size: 0x%02x\n", ack_seg.windowSize);
 	printf("Checksum : 0x%02x\n", ack_seg.checksum & 0xff);
+	printf("\n");
 }
 
 int main(int argc, char **argv)
@@ -103,6 +105,7 @@ int main(int argc, char **argv)
 			printf("Segment received : \n");
 			print_segment(seg);
 			fflush(stdout);
+			printf("\n");
 
 			// Write data from segment to external file
 			fputc(seg.data, fp);
@@ -126,6 +129,7 @@ int main(int argc, char **argv)
 
 			// Print ACK Segment
 			print_ack_segment(ack_seg);
+			printf("\n");
 		}
 	}
 
