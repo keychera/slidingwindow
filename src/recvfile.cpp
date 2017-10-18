@@ -107,12 +107,12 @@ int main(int argc, char **argv)
 	fp = fopen(filename, "w+b");
 
 	unsigned int LAF = maxWindowSize - 1;
-	unsigned int LAS = -1; //Last ACK sent
-	std::vector<segment *> segmentsReceived;
-	std::vector<segment *>::iterator segIt;
+	unsigned int LAS = 0; //Last ACK sent
+	std::vector<int> segmentsReceived;
+	std::vector<int>::iterator segIt;
 	for (int i = 0; i < maxWindowSize; i++)
 	{
-		segmentsReceived.push_back(nullptr);
+		segmentsReceived.push_back(-1);
 	}
 
 	while (1)
@@ -144,7 +144,7 @@ int main(int argc, char **argv)
 		}
 
 		//check if this is the window
-		if (seg.seqNum <= LAF && (seg.seqNum > LAS || LAS > 0xffff))
+		if (seg.seqNum <= LAF && (seg.seqNum > LAS || LAS == 0))
 		{
 			// End of data
 			if (seg.data == '\0')
@@ -159,46 +159,69 @@ int main(int argc, char **argv)
 				print_segment(seg);
 				fflush(stdout);
 				printf("\n");
-				/*
-				int seqNumToAck = 0;
+
 				segIt = segmentsReceived.begin();
-				for (int i = 0; i < seg.seqNum - (LAS + 1) + 1; i++)
+				for (int i = 0; i < seg.seqNum - LAS; i++)
 				{
-					segmentsReceived[LAS + 1 + i];
 					segIt++;
 				}
-				segmentsReceived.insert(segIt, &seg);
-				segmentsReceived.erase(segIt - 1);*/
+				segmentsReceived.insert(segIt, seg.seqNum);
+				segmentsReceived.resize(maxWindowSize);
 
-				// Write data from segment to external file
-				fwrite(&(seg.data), 1, 1, fp);
+				//process vector
 
-				// Prepare ack segment
-				ack_seg.ack = '\06';
-				ack_seg.nextSeq = seg.seqNum + 1;
-				ack_seg.windowSize = maxWindowSize;
-				unsigned char crc = CRC8(reinterpret_cast<unsigned char *>(&ack_seg), 6);
-				ack_seg.checksum = crc;
-				//ack_seg.checksum = 'c';
+				int seqNumToAck = -1;
+				for (int i = 0; i < segmentsReceived.size(); i++)
+				{
+					if (segmentsReceived[i] != -1)
+					{
+						seqNumToAck = segmentsReceived[i];
+					}
+					else
+					{
+						break;
+					}
+				}
+				if (seqNumToAck != -1)
+				{
+					// Write data from segment to external file
+					fwrite(&(seg.data), 1, 1, fp);
 
-				char ack_buf[7];
-				*ack_buf = ack_seg.ack;
-				char hex[4];
-				sprintf(hex, "%04x", ack_seg.nextSeq);
-				*(ack_buf + 1) = hex[0];
-				*(ack_buf + 2) = hex[1];
-				*(ack_buf + 3) = hex[2];
-				*(ack_buf + 4) = hex[3];
-				*(ack_buf + 5) = ack_seg.windowSize;
-				*(ack_buf + 6) = ack_seg.checksum;
+					// Prepare ack segment
+					ack_seg.ack = '\06';
+					ack_seg.nextSeq = seqNumToAck + 1;
+					ack_seg.windowSize = maxWindowSize;
+					unsigned char crc = CRC8(reinterpret_cast<unsigned char *>(&ack_seg), 6);
+					ack_seg.checksum = crc;
+					//ack_seg.checksum = 'c';
 
-				// Print ACK Segment
-				printf("Sending Ack : \n");
-				print_ack_segment(ack_seg);
-				printf("\n");
+					char ack_buf[7];
+					*ack_buf = ack_seg.ack;
+					char hex[4];
+					sprintf(hex, "%04x", ack_seg.nextSeq);
+					*(ack_buf + 1) = hex[0];
+					*(ack_buf + 2) = hex[1];
+					*(ack_buf + 3) = hex[2];
+					*(ack_buf + 4) = hex[3];
+					*(ack_buf + 5) = ack_seg.windowSize;
+					*(ack_buf + 6) = ack_seg.checksum;
 
-				sendto(sockfd, ack_buf, 7, 0, (struct sockaddr *)&clientaddr, sizeof(struct sockaddr));
-				fflush(stdout);
+					// Print ACK Segment
+					printf("Sending Ack : \n");
+					print_ack_segment(ack_seg);
+					printf("\n");
+
+					sendto(sockfd, ack_buf, 7, 0, (struct sockaddr *)&clientaddr, sizeof(struct sockaddr));
+					fflush(stdout);
+
+					for (int i = 0; i < seqNumToAck - LAS; i++)
+					{
+						segmentsReceived.erase(segmentsReceived.begin());
+						segmentsReceived.push_back(-1);
+					}
+					LAS = seqNumToAck;
+					LAF = LAS + maxWindowSize;
+				}
 			}
 		}
 		else
