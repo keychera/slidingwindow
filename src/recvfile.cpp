@@ -48,7 +48,7 @@ int main(int argc, char **argv)
 
 	int sockfd;
 	char *filename = argv[1];
-	int windowSize = atoi(argv[2]);
+	int maxWindowSize = atoi(argv[2]);
 	int bufferSize = atoi(argv[3]);
 	int port = atoi(argv[4]);
 
@@ -86,6 +86,9 @@ int main(int argc, char **argv)
 
 	FILE *fp;
 	fp = fopen(filename, "w+b");
+
+	unsigned int LAF;
+	unsigned int LFR;
 
 	while (1)
 	{
@@ -136,7 +139,7 @@ int main(int argc, char **argv)
 			// Prepare ack segment
 			ack_seg.ack = '\06';
 			ack_seg.nextSeq = seg.seqNum + 1;
-			ack_seg.windowSize = windowSize;
+			ack_seg.windowSize = maxWindowSize;
 			ack_seg.checksum = 'c';
 
 			char ack_buf[7];
