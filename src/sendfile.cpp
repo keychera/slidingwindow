@@ -1,11 +1,4 @@
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <netdb.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <sys/socket.h>
-#include <sys/time.h>
+
 #include "segment.h"
 
 void print_segment(segment seg)
@@ -28,20 +21,24 @@ void print_ack_segment(ack_segment ack_seg)
 	printf("\n");
 }
 
-unsigned char CRC8(unsigned char data, unsigned char len) {
-    unsigned char crc = 0x00;
-    while (len--) {
-        unsigned char extract = data++;
-        for (unsigned char tempI = 8; tempI; tempI--) {
-            unsigned char sum = (crc ^ extract) & 0x01;
-            crc >>= 1;
-            if (sum) {
-                crc ^= 0x8C;
-            }
-            extract >>= 1;
-        }
-    }
-    return crc;
+unsigned char CRC8(unsigned char data, unsigned char len)
+{
+	unsigned char crc = 0x00;
+	while (len--)
+	{
+		unsigned char extract = data++;
+		for (unsigned char tempI = 8; tempI; tempI--)
+		{
+			unsigned char sum = (crc ^ extract) & 0x01;
+			crc >>= 1;
+			if (sum)
+			{
+				crc ^= 0x8C;
+			}
+			extract >>= 1;
+		}
+	}
+	return crc;
 }
 
 int main(int argc, char **argv)
@@ -72,6 +69,9 @@ int main(int argc, char **argv)
 	rcvtimeo.tv_sec = 5;
 	rcvtimeo.tv_usec = 0;
 	setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &rcvtimeo, sizeof(struct timeval));
+	//recv/sendbuffer that is 256bit(bufferSize input that is also 256)
+	setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &bufferSize, sizeof(bufferSize));
+	setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, &bufferSize, sizeof(bufferSize));
 
 	// Configure socket
 	struct sockaddr_in serveraddr;
@@ -98,8 +98,8 @@ int main(int argc, char **argv)
 	}
 
 	//Sliding Window
-	int LAR = -1;
-	int LFS = -1;
+	unsigned int LAR = -1;
+	unsigned int LFS = -1;
 
 	int windowSize = maxWindowSize;
 	while (fread(buff, 1, bufferSize, fp) > 0)
@@ -122,7 +122,12 @@ int main(int argc, char **argv)
 
 				char seg_buf[9];
 				*seg_buf = seg.soh;
-				*(seg_buf + 1) = seg.seqNum;
+				char hex[4];
+				sprintf(hex,"%04x",seg.seqNum);
+				*(seg_buf + 1) = hex[0];
+				*(seg_buf + 2) = hex[1];
+				*(seg_buf + 3) = hex[2];
+				*(seg_buf + 4) = hex[3];
 				*(seg_buf + 5) = seg.stx;
 				*(seg_buf + 6) = seg.data;
 				*(seg_buf + 7) = seg.etx;
@@ -144,7 +149,15 @@ int main(int argc, char **argv)
 				bytes_recv = recvfrom(sockfd, ack_buf, 7, 0, (struct sockaddr *)&serveraddr, (socklen_t *)&sin_size);
 				if (bytes_recv > 0)
 				{
-					LAR = *(ack_buf + 1) - 1;
+					char hex[4];
+					hex[0] = *(ack_buf + 1);
+					hex[1] = *(ack_buf + 2);
+					hex[2] = *(ack_buf + 3);
+					hex[3] = *(ack_buf + 4);
+					std::string hexstr(hex);
+					hexstr.resize(4);
+					LAR = std::stoul(hexstr,nullptr,16);
+					LAR -= 1;
 				}
 				else
 				{
@@ -152,49 +165,19 @@ int main(int argc, char **argv)
 					LFS = LAR;
 				}
 				ack_seg.ack = *ack_buf;
-				ack_seg.nextSeq = *(ack_buf + 1);
+				ack_seg.nextSeq = (unsigned int)*(ack_buf + 1);
 				ack_seg.windowSize = *(ack_buf + 5);
 				ack_seg.checksum = *(ack_buf + 6);
+
+				// Print ACK Segment
+				printf("Ack Received : \n");
 				print_ack_segment(ack_seg);
+
 				//windowSize = ack_seg.windowSize < maxWindowSize ? ack_seg.windowSize : maxWindowSize;
 				fflush(stdout);
 			}
 		}
 	}
-	/*
-	while (fgets(buff, bufferSize, fp) != NULL)
-	{
-		int i = 0;
-		buff[strlen(buff)] = '\0';
-
-		while ((i < bufferSize) && (buff[i] != '\0'))
-		{
-			// Convert data to segment
-			seg.soh = '\01';
-			seg.seqNum = 1;
-			seg.stx = '\02';
-			seg.data = buff[i];
-			seg.etx = '\03';
-			seg.checksum = 'c';
-
-			char seg_buf[9];
-			*seg_buf = seg.soh;
-			*(seg_buf + 1) = seg.seqNum;
-			*(seg_buf + 5) = seg.stx;
-			*(seg_buf + 6) = seg.data;
-			*(seg_buf + 7) = seg.etx;
-			*(seg_buf + 8) = seg.checksum;
-
-			printf("Segment going to be sent : \n");
-			print_segment(seg);
-			fflush(stdout);
-
-			// Send data
-			sendto(sockfd, seg_buf, 9, 0, (struct sockaddr *)&serveraddr, sizeof(struct sockaddr));
-
-			i++;
-		}
-	}*/
 
 	// Mark end of data
 	seg.soh = '\01';
@@ -218,21 +201,5 @@ int main(int argc, char **argv)
 	sendto(sockfd, seg_buf, 9, 0, (struct sockaddr *)&serveraddr, sizeof(struct sockaddr));
 
 	fclose(fp);
-
-	char ack_buf[7];
-	int bytes_recv = recvfrom(sockfd, ack_buf, 7, 0, (struct sockaddr *)&serveraddr, (socklen_t *)&sin_size);
-	printf("ACK Received : %s\n", ack_buf);
-	ack_seg.ack = *ack_buf;
-	ack_seg.nextSeq = *(ack_buf + 1);
-	ack_seg.windowSize = *(ack_buf + 5);
-	ack_seg.checksum = *(ack_buf + 6);
-	print_ack_segment(ack_seg);
-	fflush(stdout);
-
-	if (ack_seg.checksum == 'c')
-	{
-		// Sliding window
-	}
-
 	close(sockfd);
 }

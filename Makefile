@@ -1,5 +1,5 @@
 CC=g++
-CFLAGS=-g -Wall
+CFLAGS=-g -Wall -std=c++11
 
 all: sendfile recvfile 
 
@@ -16,4 +16,4 @@ recvfile.o : src/recvfile.cpp
 	$(CC) -c src/recvfile.cpp -o recvfile.o $(CFLAGS)
 
 clean:
-	rm -f *.o bin/sendfile bin/recvfile
+	rm -f *.o bin/sendfile bin/recvfile bin/dummy
