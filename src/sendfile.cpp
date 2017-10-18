@@ -41,23 +41,23 @@ void print_ack_segment(ack_segment ack_seg)
 // 	return crc;
 // }
 
-unsigned char CRC8(const unsigned char * data, const unsigned int size)
+unsigned char CRC8(const unsigned char *data, const unsigned int size)
 {
-    unsigned char crc = 0;
-    for ( unsigned int i = 0; i < size; ++i )
-    {
-        unsigned char inbyte = data[i];
-        for ( unsigned char j = 0; j < 8; ++j )
-        {
-            unsigned char mix = (crc ^ inbyte) & 0x01;
-            crc >>= 1;
-            if ( mix ) crc ^= 0x8C;
-            inbyte >>= 1;
-        }
-    }
-    return crc;
+	unsigned char crc = 0;
+	for (unsigned int i = 0; i < size; ++i)
+	{
+		unsigned char inbyte = data[i];
+		for (unsigned char j = 0; j < 8; ++j)
+		{
+			unsigned char mix = (crc ^ inbyte) & 0x01;
+			crc >>= 1;
+			if (mix)
+				crc ^= 0x8C;
+			inbyte >>= 1;
+		}
+	}
+	return crc;
 }
-
 
 int main(int argc, char **argv)
 {
@@ -141,7 +141,7 @@ int main(int argc, char **argv)
 				char seg_buf[9];
 				*seg_buf = seg.soh;
 				char hex[4];
-				sprintf(hex,"%04x",seg.seqNum);
+				sprintf(hex, "%04x", seg.seqNum);
 				*(seg_buf + 1) = hex[0];
 				*(seg_buf + 2) = hex[1];
 				*(seg_buf + 3) = hex[2];
@@ -172,7 +172,7 @@ int main(int argc, char **argv)
 				hex[3] = *(ack_buf + 4);
 				std::string hexstr(hex);
 				hexstr.resize(4);
-				ack_seg.nextSeq = std::stoul(hexstr,nullptr,16);
+				ack_seg.nextSeq = std::stoul(hexstr, nullptr, 16);
 				if (bytes_recv > 0)
 				{
 					LAR = ack_seg.nextSeq - 1;
@@ -195,7 +195,7 @@ int main(int argc, char **argv)
 			}
 		}
 
-		for (int i=0; i<256; i++)
+		for (int i = 0; i < 256; i++)
 			buff[i] = '\0';
 	}
 

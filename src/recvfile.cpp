@@ -136,19 +136,26 @@ int main(int argc, char **argv)
 			hex[3] = *(buff + 4);
 			std::string hexstr(hex);
 			hexstr.resize(4);
-			seg.seqNum = std::stoul(hexstr, nullptr, 16);
+			try
+			{
+				seg.seqNum = std::stoul(hexstr, nullptr, 16);
+			}
+			catch (...)
+			{
+			}
 			seg.stx = *(buff + 5);
 			seg.data = *(buff + 6);
 			seg.etx = *(buff + 7);
 			seg.checksum = *(buff + 8);
 		}
 
+		// End of data
+		if (seg.data == '\0')
+			break;
+
 		//check if this is the window
 		if (seg.seqNum <= LAF && (seg.seqNum > LAS || LAS == 0))
 		{
-			// End of data
-			if (seg.data == '\0')
-				break;
 
 			unsigned char crc = CRC8(reinterpret_cast<unsigned char *>(&seg), 8);
 			if (seg.checksum == crc)
